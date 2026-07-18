@@ -7,6 +7,7 @@ GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/legacy/build/pdf.worker.mjs'
 env.allowLocalModels = true
 env.allowRemoteModels = false
 env.localModelPath = '/models/'
+env.backends.onnx.wasm.wasmPaths = '/ort/'
 
 const MODEL_ID = 'Xenova/LaMini-Flan-T5-248M'
 const DOCUMENT_LIMIT = 9000
