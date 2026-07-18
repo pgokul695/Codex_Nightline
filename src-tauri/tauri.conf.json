@@ -5,7 +5,7 @@
   "identifier": "com.buildathon.codexnightline",
   "build": {
     "beforeDevCommand": "npm run dev",
-    "devUrl": "http://localhost:5173",
+    "devUrl": "http://localhost:5015",
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
@@ -19,7 +19,7 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; connect-src 'self' https://schedgeb.gokulp.online; img-src 'self' asset: http://asset.localhost data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; worker-src 'self' blob:;"
     }
   },
   "bundle": {

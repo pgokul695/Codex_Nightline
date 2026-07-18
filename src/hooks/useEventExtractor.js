@@ -4,7 +4,13 @@ import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist/legacy/build/pdf.mj
 
 GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/legacy/build/pdf.worker.mjs', import.meta.url).toString()
 
-const EXTRACTION_API_URL = (import.meta.env.VITE_EXTRACTION_API_URL || 'http://localhost:8000').replace(/\/$/, '')
+function extractionApiUrl() {
+  const configuredUrl = import.meta.env.VITE_EXTRACTION_API_URL
+  if (!configuredUrl) {
+    throw new Error('VITE_EXTRACTION_API_URL is required to extract events. Rebuild the app with the backend URL configured.')
+  }
+  return configuredUrl.replace(/\/$/, '')
+}
 const MONTHS = '(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)'
 const DAY = '(?:0?[1-9]|[12]\\d|3[01])(?:st|nd|rd|th)?'
 const DATE_PATTERNS = [
@@ -67,7 +73,7 @@ async function extractText(file) {
   return blocks.join('\n').trim()
 }
 async function generateEvents(text) {
-  const response = await fetch(`${EXTRACTION_API_URL}/api/extract`, {
+  const response = await fetch(`${extractionApiUrl()}/api/extract`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text }),
