@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import EventList from './components/EventList'
 import Uploader from './components/Uploader'
 import useEventExtractor from './hooks/useEventExtractor'
+import { exportEvents } from './utils/exportLogic'
 import './App.css'
 
 function App() {
@@ -11,6 +13,19 @@ function App() {
     isProcessing,
     error,
   } = useEventExtractor()
+  const [exportMessage, setExportMessage] = useState('')
+
+  const handleExport = async () => {
+    setExportMessage('')
+    try {
+      const result = await exportEvents(extractedEvents)
+      setExportMessage(`Exported ${result.count} event${result.count === 1 ? '' : 's'}.`)
+    } catch (exportError) {
+      setExportMessage(
+        exportError instanceof Error ? exportError.message : 'Unable to export events.',
+      )
+    }
+  }
 
   return (
     <main className="schedge">
@@ -30,6 +45,14 @@ function App() {
         extractedEvents={extractedEvents}
         setExtractedEvents={setExtractedEvents}
       />
+      {extractedEvents.length ? (
+        <section className="export-bar" aria-label="Calendar export">
+          <button type="button" className="export-button" onClick={handleExport}>
+            Export All
+          </button>
+          {exportMessage ? <p role="status">{exportMessage}</p> : null}
+        </section>
+      ) : null}
     </main>
   )
 }

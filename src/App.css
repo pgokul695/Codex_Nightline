@@ -104,6 +104,21 @@
 .event-card__dates dt { color: var(--text); font-size: 12px; }
 .event-card__dates dd { margin: 3px 0 0; color: var(--text-h); font-size: 14px; }
 
+.export-bar { display: flex; align-items: center; gap: 14px; margin-top: 24px; }
+.export-bar p { font-size: 14px; }
+.export-button {
+  padding: 11px 16px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  color: #fff;
+  background: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+}
+.export-button:hover { filter: brightness(1.08); }
+
 @media (max-width: 600px) {
   .schedge { padding: 40px 18px; }
   .drop-zone { grid-template-columns: auto 1fr; }
