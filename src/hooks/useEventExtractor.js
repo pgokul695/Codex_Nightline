@@ -20,6 +20,7 @@ env.allowRemoteModels = false
 
 const MONTHS = '(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)'
 const DAY = '(?:0?[1-9]|[12]\\d|3[01])(?:st|nd|rd|th)?'
+const QA_PREFIX_LENGTH = 6000
 
 const DATE_PATTERNS = [
   /\b\d{4}\s*-\s*(?:0?[1-9]|1[0-2])\s*-\s*(?:0?[1-9]|[12]\d|3[01])\b/g,
@@ -164,6 +165,16 @@ function dateWindows(blocks) {
   return [{ ...start, rawEndDate: end?.rawDate }]
 }
 
+function buildQaContext(fullText, dateContext) {
+  // Titles and subjects tend to appear near the beginning of a document,
+  // while locations are often near the selected schedule dates. Keep both
+  // sources independent from the small regex window used for date selection.
+  const documentPrefix = fullText.slice(0, QA_PREFIX_LENGTH)
+  if (!dateContext || documentPrefix.includes(dateContext)) return documentPrefix
+
+  return `${documentPrefix}\n\nSchedule details:\n${dateContext}`
+}
+
 async function identifyEvent(contextChunk) {
   try {
     const qa = await getQuestionAnswerer()
@@ -208,7 +219,7 @@ export function useEventExtractor() {
 
       const events = await Promise.all(
         chunks.map(async ({ rawDate, rawEndDate, contextChunk }) => {
-          const details = await identifyEvent(contextChunk)
+          const details = await identifyEvent(buildQaContext(fullText, contextChunk))
           const parsedDate = parseExtractedDate(rawDate)
           const parsedEndDate = parseExtractedDate(rawEndDate)
 
