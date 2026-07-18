@@ -39,6 +39,18 @@ cp server/.env.example server/.env
 
 The launcher installs missing Node and Python dependencies, starts the backend on `:5014`, and starts Vite on `:5015`. Open `http://localhost:5015` for local development. In the hosted setup, the existing reverse proxy exposes the frontend at `https://schedge.gokulp.online` and the backend at `https://schedgeb.gokulp.online`. See [ARCHITECTURE.md](ARCHITECTURE.md) for deployment details.
 
+### Android
+
+Install Android Studio (or the Android SDK command-line tools) and Java 17. Build and sync the production web bundle, then open the generated native project:
+
+```bash
+npm run build
+npx cap sync android
+npx cap open android
+```
+
+Use Android Studio to run a debug build on an emulator or device. For a distributable APK/AAB, follow [android/RELEASE_SIGNING.md](android/RELEASE_SIGNING.md).
+
 ## Known limitations
 
 - A broader product policy for one event versus several related events is still open. The current extractor groups clear start/end pairs and selects the earliest fee-tier deadline, but more document types need an explicit product decision.

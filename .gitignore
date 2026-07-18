@@ -11,10 +11,14 @@ node_modules
 dist
 dist-ssr
 src-tauri/target
+src-tauri/gen/
 *.local
 server/.env
 server/.venv/
 server/__pycache__/
+*.keystore
+server/keystore.base64
+android/keystore.properties
 
 # Editor directories and files
 .vscode/*

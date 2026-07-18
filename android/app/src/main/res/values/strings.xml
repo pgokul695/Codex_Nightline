@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Schedger</string>
+    <string name="title_activity_main">Schedger</string>
+    <string name="package_name">online.gokulp.schedger</string>
+    <string name="custom_url_scheme">online.gokulp.schedger</string>
+</resources>
