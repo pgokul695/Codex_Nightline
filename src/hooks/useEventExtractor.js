@@ -18,10 +18,14 @@ GlobalWorkerOptions.workerSrc = new URL(
 env.allowLocalModels = true
 env.allowRemoteModels = false
 
+const MONTHS = '(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)'
+const DAY = '(?:0?[1-9]|[12]\\d|3[01])(?:st|nd|rd|th)?'
+
 const DATE_PATTERNS = [
-  /\b(?:0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(?:0?[1-9]|1[0-2])\s*[\/-]\s*\d{2,4}\b/g,
-  /\b(?:0?[1-9]|1[0-2])\s*[\/-]\s*(?:0?[1-9]|[12]\d|3[01])\s*[\/-]\s*\d{2,4}\b/g,
-  /\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+(?:0?[1-9]|[12]\d|3[01])(?:,\s*\d{4})?\b/gi,
+  /\b\d{4}\s*-\s*(?:0?[1-9]|1[0-2])\s*-\s*(?:0?[1-9]|[12]\d|3[01])\b/g,
+  /\b(?:0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(?:0?[1-9]|1[0-2])\s*[\/-]\s*\d{4}\b/g,
+  new RegExp(`\\b${DAY}\\s+${MONTHS}\\.?\\s+\\d{4}\\b`, 'gi'),
+  new RegExp(`\\b${MONTHS}\\.?\\s+${DAY}(?:,)?\\s+\\d{4}\\b`, 'gi'),
 ]
 
 let questionAnswererPromise
@@ -77,16 +81,56 @@ async function extractTextBlocks(file) {
   return blocks
 }
 
+function dateRole(precedingText, blockIndex) {
+  const label = precedingText.slice(-140)
+
+  if (/\bstart\s*date\s*:?\s*$/i.test(label)) return 'start'
+  if (/\bend\s*date\s*:?\s*$/i.test(label)) return 'end'
+  if (/\b(?:event\s*date|scheduled|held\s+on|from)\s*:?\s*$/i.test(label)) return 'start'
+  if (/\bto\s*:?\s*$/i.test(label)) return 'end'
+  if (/\bon\s*:?\s*$/i.test(label)) return 'start'
+  if (blockIndex < 12 && /\bdate\s*:\s*$/i.test(label)) return 'metadata'
+
+  return undefined
+}
+
+function candidateScore(role) {
+  if (role === 'start') return 100
+  if (role === 'end') return 95
+  if (role === 'metadata') return -100
+  return 0
+}
+
+function normalizeDate(rawDate) {
+  return rawDate.replace(/(\d{1,2})(?:st|nd|rd|th)\b/gi, '$1')
+}
+
+function parseExtractedDate(rawDate) {
+  if (!rawDate) return undefined
+  const parsedDate = chrono.parseDate(normalizeDate(rawDate))
+  return parsedDate instanceof Date && !Number.isNaN(parsedDate.getTime())
+    ? parsedDate
+    : undefined
+}
+
 function dateWindows(blocks) {
-  const windows = []
+  const candidates = []
 
   blocks.forEach((block, index) => {
     for (const pattern of DATE_PATTERNS) {
       pattern.lastIndex = 0
       let match
       while ((match = pattern.exec(block)) !== null) {
-        windows.push({
+        const precedingText = `${blocks
+          .slice(Math.max(0, index - 6), index)
+          .join(' ')} ${block.slice(Math.max(0, match.index - 140), match.index)}`
+        const role = dateRole(precedingText, index)
+
+        candidates.push({
           rawDate: match[0],
+          role,
+          score: candidateScore(role),
+          blockIndex: index,
           contextChunk: blocks
             .slice(Math.max(0, index - 2), Math.min(blocks.length, index + 3))
             .join(' '),
@@ -95,9 +139,7 @@ function dateWindows(blocks) {
     }
   })
 
-  // The same numeric date can match both DD/MM and MM/DD patterns. Processing
-  // it once preserves the useful context without emitting duplicate events.
-  return windows.filter(
+  const windows = candidates.filter(
     (window, index, all) =>
       all.findIndex(
         (candidate) =>
@@ -105,6 +147,21 @@ function dateWindows(blocks) {
           candidate.contextChunk === window.contextChunk,
       ) === index,
   )
+
+  const labeled = windows.filter((window) => window.role === 'start' || window.role === 'end')
+  if (!labeled.length) return windows
+
+  const byPriority = [...labeled].sort(
+    (left, right) => right.score - left.score || left.blockIndex - right.blockIndex,
+  )
+  const start = byPriority.find((window) => window.role === 'start') || byPriority[0]
+  const end = byPriority.find(
+    (window) => window.role === 'end' && window.blockIndex >= start.blockIndex,
+  )
+
+  // Start/End labels describe one event, while incidental header dates are
+  // ignored. Unlabelled documents keep the original all-match behavior above.
+  return [{ ...start, rawEndDate: end?.rawDate }]
 }
 
 async function identifyEvent(contextChunk) {
@@ -150,24 +207,28 @@ export function useEventExtractor() {
         : [{ rawDate: undefined, contextChunk: fullText }]
 
       const events = await Promise.all(
-        chunks.map(async ({ rawDate, contextChunk }) => {
+        chunks.map(async ({ rawDate, rawEndDate, contextChunk }) => {
           const details = await identifyEvent(contextChunk)
-          const parsedDate = rawDate ? chrono.parseDate(rawDate) : undefined
+          const parsedDate = parseExtractedDate(rawDate)
+          const parsedEndDate = parseExtractedDate(rawEndDate)
+
+          // Keep the full-text QA fallback above, but never turn a document
+          // without a confirmed date into a plausible-looking calendar event.
+          if (!parsedDate) return null
 
           return {
             id: makeId(),
             title: details.title,
             location: details.location,
-            // A text-only/no-date PDF still gets a usable event. The current
-            // time is deliberately a fallback, not an inferred event duration.
-            start: parsedDate || new Date(),
-            end: undefined,
+            start: parsedDate,
+            end: parsedEndDate,
           }
         }),
       )
 
-      setExtractedEvents(events)
-      return events
+      const datedEvents = events.filter(Boolean)
+      setExtractedEvents(datedEvents)
+      return datedEvents
     } catch (caughtError) {
       // PDF.js only reaches here for invalid input or an unreadable PDF. Model,
       // regex, and empty-text failures have all already been absorbed above.
