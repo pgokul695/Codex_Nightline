@@ -9,7 +9,7 @@ const MONTHS = '(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)
 const DAY = '(?:0?[1-9]|[12]\\d|3[01])(?:st|nd|rd|th)?'
 const DATE_PATTERNS = [
   /\b\d{4}\s*-\s*(?:0?[1-9]|1[0-2])\s*-\s*(?:0?[1-9]|[12]\d|3[01])\b/g,
-  /\b(?:0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(?:0?[1-9]|1[0-2])\s*[\/-]\s*\d{4}\b/g,
+  /\b(?:0?[1-9]|[12]\d|3[01])\s*[\/.\-]\s*(?:0?[1-9]|1[0-2])\s*[\/.\-]\s*\d{4}\b/g,
   new RegExp(`\\b${DAY}\\s+${MONTHS}\\.?\\s+\\d{4}\\b`, 'gi'),
   new RegExp(`\\b${MONTHS}\\.?\\s+${DAY}(?:,)?\\s+\\d{4}\\b`, 'gi'),
 ]
@@ -25,6 +25,25 @@ function parseDate(value) {
   return date instanceof Date && !Number.isNaN(date.getTime()) ? date : undefined
 }
 function dateKey(date) { return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}` }
+function dateKeyFromParts(year, month, day) {
+  const date = new Date(year, month - 1, day)
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
+    ? dateKey(date)
+    : undefined
+}
+function addNumericDateKeys(value, keys) {
+  const match = String(value).match(/^(\d{1,2})\s*[/.\-]\s*(\d{1,2})\s*[/.\-]\s*(\d{4})$/)
+  if (!match) return
+  const first = Number(match[1])
+  const second = Number(match[2])
+  const year = Number(match[3])
+  // PDFs do not encode whether 12/07 is DMY or MDY. Preserve both source-backed
+  // interpretations, rather than silently rejecting a valid backend ISO date.
+  for (const [month, day] of [[second, first], [first, second]]) {
+    const key = dateKeyFromParts(year, month, day)
+    if (key) keys.add(key)
+  }
+}
 function sourceDateKeys(text) {
   const keys = new Set()
   for (const pattern of DATE_PATTERNS) {
@@ -33,6 +52,7 @@ function sourceDateKeys(text) {
     while ((match = pattern.exec(text)) !== null) {
       const date = parseDate(match[0])
       if (date) keys.add(dateKey(date))
+      addNumericDateKeys(match[0], keys)
     }
   }
   return keys
@@ -61,28 +81,62 @@ async function generateEvents(text) {
     throw new Error('Extraction backend returned a non-JSON response. Check VITE_EXTRACTION_API_URL.')
   }
   const events = await response.json()
+  console.debug('[Schedger] Extraction response received', {
+    isArray: Array.isArray(events),
+    type: typeof events,
+    events,
+  })
   if (!Array.isArray(events)) throw new Error('Extraction backend returned an invalid event list.')
   return events
 }
-function validateEvents(modelEvents, documentText) {
-  if (!Array.isArray(modelEvents)) return []
+function warnSkippedEvent(event, reason) {
+  console.warn('[Schedger] Skipped extracted event:', reason, event)
+}
+function normalizeExtractedEvent(rawEvent, supportedDates) {
+  if (!rawEvent || typeof rawEvent !== 'object') {
+    warnSkippedEvent(rawEvent, 'expected an event object')
+    return undefined
+  }
+
+  // This is the single boundary between the Gemini response schema
+  // (snake_case strings) and the review UI schema (Date objects).
+  const start = parseDate(rawEvent.start_date)
+  const end = parseDate(rawEvent.end_date)
+  if (!rawEvent.start_date) {
+    warnSkippedEvent(rawEvent, 'missing required start_date')
+    return undefined
+  }
+  if (!start) {
+    warnSkippedEvent(rawEvent, `invalid start_date: ${rawEvent.start_date}`)
+    return undefined
+  }
+  if (!supportedDates.has(dateKey(start))) {
+    warnSkippedEvent(rawEvent, `start_date is not present in the PDF: ${rawEvent.start_date}`)
+    return undefined
+  }
+  if (rawEvent.end_date && !end) {
+    console.warn('[Schedger] Ignoring invalid end_date for extracted event:', rawEvent)
+  }
+  if (end && !supportedDates.has(dateKey(end))) {
+    console.warn('[Schedger] Ignoring end_date that is not present in the PDF:', rawEvent)
+  }
+
+  return {
+    id: makeId(),
+    title: typeof rawEvent.title === 'string' && rawEvent.title.trim() ? rawEvent.title.trim() : 'Notification Event',
+    location: typeof rawEvent.location === 'string' && rawEvent.location.trim() ? rawEvent.location.trim() : undefined,
+    start,
+    end: end && supportedDates.has(dateKey(end)) ? end : undefined,
+    confidence: rawEvent.confidence,
+  }
+}
+function normalizeExtractedEvents(modelEvents, documentText) {
+  if (!Array.isArray(modelEvents)) {
+    console.warn('[Schedger] Ignored extraction response because it was not an array:', modelEvents)
+    return []
+  }
   const supportedDates = sourceDateKeys(documentText)
-  return modelEvents.flatMap((event) => {
-    if (!event || typeof event !== 'object') return []
-    const start = parseDate(event.start_date)
-    const end = parseDate(event.end_date)
-    // Dates must parse and occur in the source; this prevents invented dates
-    // (including an implicit current-date fallback) from reaching the UI.
-    if (!start || !supportedDates.has(dateKey(start))) return []
-    const validEnd = end && supportedDates.has(dateKey(end)) ? end : undefined
-    return [{
-      id: makeId(),
-      title: typeof event.title === 'string' && event.title.trim() ? event.title.trim() : 'Notification Event',
-      location: typeof event.location === 'string' && event.location.trim() ? event.location.trim() : undefined,
-      start,
-      end: validEnd,
-    }]
-  })
+  return modelEvents.map((event) => normalizeExtractedEvent(event, supportedDates)).filter(Boolean)
 }
 
 export function useEventExtractor() {
@@ -95,7 +149,7 @@ export function useEventExtractor() {
     try {
       if (!file || typeof file.arrayBuffer !== 'function') throw new Error('A PDF file is required.')
       const text = await extractText(file)
-      const events = validateEvents(await generateEvents(text), text)
+      const events = normalizeExtractedEvents(await generateEvents(text), text)
       setExtractedEvents(events)
       return events
     } catch (caughtError) {
