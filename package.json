@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "prepare-model": "bash scripts/fetch-model.sh"
   },
   "dependencies": {
     "@capacitor/cli": "^8.4.2",

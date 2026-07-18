@@ -6,6 +6,7 @@ import { env, pipeline } from '@xenova/transformers'
 GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/legacy/build/pdf.worker.mjs', import.meta.url).toString()
 env.allowLocalModels = true
 env.allowRemoteModels = false
+env.localModelPath = '/models/'
 
 const MODEL_ID = 'Xenova/LaMini-Flan-T5-248M'
 const DOCUMENT_LIMIT = 9000
@@ -46,11 +47,26 @@ function sourceDateKeys(text) {
 }
 async function getGenerator() {
   if (!generatorPromise) {
-    generatorPromise = pipeline('text2text-generation', MODEL_ID, {
-      dtype: 'q8',
-      quantized: true,
-      local_files_only: true,
-    }).catch((error) => { generatorPromise = undefined; throw error })
+    generatorPromise = (async () => {
+      const modelRoot = `${env.localModelPath}${MODEL_ID}`
+      try {
+        const response = await fetch(`${modelRoot}/config.json`)
+        const body = await response.text()
+        const isJson = response.headers.get('content-type')?.includes('application/json')
+        if (!response.ok || !isJson) throw new Error(`received ${response.status} ${response.statusText}`)
+        JSON.parse(body)
+        return await pipeline('text2text-generation', MODEL_ID, {
+          dtype: 'q8',
+          quantized: true,
+          local_files_only: true,
+        })
+      } catch (error) {
+        generatorPromise = undefined
+        throw new Error(
+          `Model assets not found at ${modelRoot}. Run \"npm run prepare-model\" before building the app. ${error instanceof Error ? error.message : ''}`,
+        )
+      }
+    })()
   }
   return generatorPromise
 }
