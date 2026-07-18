@@ -1,13 +1,19 @@
-.schedge {
+.schedger {
   width: min(760px, 100%);
   margin: 0 auto;
   padding: 72px 24px;
   box-sizing: border-box;
 }
 
-.schedge__header { margin-bottom: 42px; }
-.schedge h1 { max-width: 620px; margin: 12px 0; }
-.schedge__lede { max-width: 540px; font-size: 17px; }
+.schedger__header { margin-bottom: 42px; }
+.schedger h1 {
+  max-width: 620px;
+  margin: 12px 0;
+  position: static;
+  display: block;
+  line-height: 1.15;
+}
+.schedger__lede { max-width: 540px; font-size: 17px; }
 
 .eyebrow,
 .event-card__label {
@@ -120,7 +126,7 @@
 .export-button:hover { filter: brightness(1.08); }
 
 @media (max-width: 600px) {
-  .schedge { padding: 40px 18px; }
+  .schedger { padding: 40px 18px; }
   .drop-zone { grid-template-columns: auto 1fr; }
   .browse-button { grid-column: 1 / -1; width: 100%; }
   .event-card__dates { grid-template-columns: 1fr; }

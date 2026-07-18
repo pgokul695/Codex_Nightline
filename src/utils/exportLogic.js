@@ -41,7 +41,7 @@ function createCalendar(events) {
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Schedge//Event Export//EN',
+    'PRODID:-//Schedger//Event Export//EN',
     'CALSCALE:GREGORIAN',
     ...eventBlocks,
     'END:VCALENDAR',
@@ -63,7 +63,7 @@ async function exportToTauri(calendar) {
     ])
     const filePath = await join(
       await tempDir(),
-      `schedge-events-${Date.now()}.ics`,
+      `schedger-events-${Date.now()}.ics`,
     )
 
     await writeTextFile(filePath, calendar)
@@ -97,7 +97,7 @@ function exportToWeb(calendar) {
   const url = URL.createObjectURL(new Blob([calendar], { type: 'text/calendar' }))
   const link = document.createElement('a')
   link.href = url
-  link.download = 'schedge-events.ics'
+  link.download = 'schedger-events.ics'
   link.hidden = true
   document.body.appendChild(link)
   link.click()

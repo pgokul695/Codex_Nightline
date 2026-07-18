@@ -1,5 +1,5 @@
 [package]
-name = "schedge"
+name = "schedger"
 version = "0.1.0"
 description = "Privacy-first, on-device calendar extraction"
 authors = ["GokulP"]

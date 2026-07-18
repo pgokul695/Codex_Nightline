@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Schedge",
+  "productName": "Schedger",
   "version": "0.1.0",
-  "identifier": "com.schedge.app",
+  "identifier": "com.buildathon.codexnightline",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:5173",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Schedge",
+        "title": "Schedger",
         "width": 900,
         "height": 760,
         "resizable": true

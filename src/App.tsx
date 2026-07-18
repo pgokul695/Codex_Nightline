@@ -28,12 +28,12 @@ function App() {
   }
 
   return (
-    <main className="schedge">
-      <header className="schedge__header">
-        <p className="eyebrow">Schedge</p>
-        <h1>Check it before it reaches your calendar.</h1>
-        <p className="schedge__lede">
-          Extract events from a schedule PDF, then edit every detail before export.
+    <main className="schedger">
+      <header className="schedger__header">
+        <p className="eyebrow">Schedger</p>
+        <h1>It reads. It guesses. Nothing slips through.</h1>
+        <p className="schedger__lede">
+          Upload a schedule PDF, review every extracted detail, and export only what you confirm.
         </p>
       </header>
       <Uploader

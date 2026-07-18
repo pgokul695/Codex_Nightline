@@ -5,5 +5,5 @@ fn main() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
         .run(tauri::generate_context!())
-        .expect("error while running Schedge");
+        .expect("error while running Schedger");
 }
