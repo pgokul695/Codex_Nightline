@@ -1,7 +1,7 @@
 [package]
 name = "schedger"
 version = "0.1.0"
-description = "Privacy-first, on-device calendar extraction"
+description = "AI-assisted calendar extraction"
 authors = ["GokulP"]
 edition = "2021"
 

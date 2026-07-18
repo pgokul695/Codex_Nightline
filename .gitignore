@@ -12,6 +12,9 @@ dist
 dist-ssr
 src-tauri/target
 *.local
+server/.env
+server/.venv/
+server/__pycache__/
 
 # Editor directories and files
 .vscode/*
