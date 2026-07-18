@@ -1,77 +1,52 @@
-# React + TypeScript + Vite
+# Schedger
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Turn schedule PDFs into reviewed calendar events with a self-hosted AI extraction service.
 
-Currently, two official plugins are available:
+Schedger is for people who receive syllabi, timetables, offer letters, or exam notices as PDFs. Upload a document, let AI identify candidate events, correct every field in the review list, then export only the events you approve to a desktop, mobile, or web calendar workflow.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## How extraction works
 
-## React Compiler
+The browser extracts text from the PDF, then sends that text to the self-hosted extraction backend. The backend calls Gemini Flash-Lite with a structured JSON schema for titles, locations, dates, and confidence. Nothing is committed automatically: every result first appears in an editable review list.
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+<!-- Replace these placeholders with current product screenshots. -->
 
-Note: This will impact Vite dev & build performances.
+![Landing page placeholder — add docs/landing-page.png](docs/landing-page.png)
+![Review UI placeholder — add docs/review-ui.png](docs/review-ui.png)
+![Export flow placeholder — add docs/export-flow.png](docs/export-flow.png)
 
-## Expanding the ESLint configuration
+## Stack
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+| Layer | Technology |
+| --- | --- |
+| Frontend | Vite, React, TypeScript/JavaScript, `pdfjs-dist` |
+| Review UI | Framer Motion, Lucide React, Chrono |
+| Backend | FastAPI, `google-genai`, Uvicorn |
+| Model | Gemini 3.1 Flash-Lite structured output |
+| Calendar export | Tauri v2, Capacitor calendar plugin, or a web `.ics` download |
+| Deployment | Self-hosted single machine behind a reverse proxy |
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Quickstart
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+Prerequisites: Node.js 20+, Python 3.10+, and a Gemini API key from Google AI Studio.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+git clone git@github.com:pgokul695/Codex_Nightline.git
+cd Codex_Nightline
+cp server/.env.example server/.env
+# Add GEMINI_API_KEY to server/.env
+./run-schedger.sh
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The launcher installs missing Node and Python dependencies, starts the backend on `:5014`, and starts Vite on `:5015`. Open `http://localhost:5015` for local development. In the hosted setup, the existing reverse proxy exposes the frontend at `https://schedge.gokulp.online` and the backend at `https://schedgeb.gokulp.online`. See [ARCHITECTURE.md](ARCHITECTURE.md) for deployment details.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Known limitations
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- A broader product policy for one event versus several related events is still open. The current extractor groups clear start/end pairs and selects the earliest fee-tier deadline, but more document types need an explicit product decision.
+- Gemini extraction has not yet been regression-tested against the complete original PDF set after the backend migration.
+- The landing-page upload copy still says details are extracted locally. That is inaccurate for the current backend architecture and needs a separate product-copy pass.
 
-```
+## Contributing and license
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development and pull-request guidance.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) — [MIT License](LICENSE).
